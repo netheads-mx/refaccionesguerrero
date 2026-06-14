@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Rol {
+  administrador
+  manager
+  cajero
+}
+
+enum MetodoPago {
+  efectivo
+  transferencia
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Sucursal {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @db.VarChar(100)
+  direccion String    @db.VarChar(255)
+  creadoEn  DateTime  @default(now()) @map("creado_en")
+
+  usuarios      Usuario[]
+  inventario    InventarioSucursal[]
+  ventas        Venta[]
+  cortesCaja    CorteCaja[]
+  cotizaciones  Cotizacion[]
+
+  @@map("sucursales")
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  nombre     String   @db.VarChar(100)
+  apellido   String   @db.VarChar(100)
+  email      String   @unique @db.VarChar(255)
+  password   String   @db.VarChar(255)
+  rol        Rol
+  sucursalId Int?     @map("sucursal_id")
+  activo     Boolean  @default(true)
+  creadoEn   DateTime @default(now()) @map("creado_en")
+
+  sucursal      Sucursal?     @relation(fields: [sucursalId], references: [id])
+  ventas        Venta[]
+  cortesCaja    CorteCaja[]
+  cotizaciones  Cotizacion[]
+
+  @@map("usuarios")
+}
+
+model Producto {
+  id             Int      @id @default(autoincrement())
+  numeroSerie    String   @unique @map("numero_serie") @db.VarChar(100)
+  nombre         String   @db.VarChar(200)
+  descripcion    String?  @db.Text
+  marca          String?  @db.VarChar(100)
+  modelo         String?  @db.VarChar(100)
+  color          String?  @db.VarChar(50)
+  detalles       String?  @db.Text
+  anioInicio     Int?     @map("anio_inicio")
+  anioFin        Int?     @map("anio_fin")
+  precioUnitario Decimal  @map("precio_unitario") @db.Decimal(12, 2)
+  activo         Boolean  @default(true)
+  creadoEn       DateTime @default(now()) @map("creado_en")
+
+  inventario          InventarioSucursal[]
+  ventaDetalles       VentaDetalle[]
+  cotizacionDetalles  CotizacionDetalle[]
+
+  @@map("productos")
+}
+
+model InventarioSucursal {
+  id         Int      @id @default(autoincrement())
+  productoId Int      @map("producto_id")
+  sucursalId Int      @map("sucursal_id")
+  stock      Int      @default(0)
+
+  producto   Producto @relation(fields: [productoId], references: [id])
+  sucursal   Sucursal @relation(fields: [sucursalId], references: [id])
+
+  @@unique([productoId, sucursalId])
+  @@map("inventario_sucursal")
+}
+
+model Venta {
+  id            Int        @id @default(autoincrement())
+  fecha         DateTime   @default(now())
+  sucursalId    Int        @map("sucursal_id")
+  usuarioId     Int        @map("usuario_id")
+  metodoPago    MetodoPago @map("metodo_pago")
+  claveRastreo  String?    @map("clave_rastreo") @db.VarChar(100)
+  subtotal      Decimal    @db.Decimal(12, 2)
+  ivaPorcentaje Decimal    @default(16.00) @map("iva_porcentaje") @db.Decimal(5, 2)
+  totalConIva   Decimal    @map("total_con_iva") @db.Decimal(12, 2)
+  creadoEn      DateTime   @default(now()) @map("creado_en")
+  corteId       Int?       @map("corte_id")
+
+  sucursal      Sucursal       @relation(fields: [sucursalId], references: [id])
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id])
+  detalles      VentaDetalle[]
+  corte         CorteCaja?     @relation(fields: [corteId], references: [id])
+
+  @@map("ventas")
+}
+
+model CorteCaja {
+  id                 Int      @id @default(autoincrement())
+  fecha              DateTime @db.Date
+  sucursalId         Int      @map("sucursal_id")
+  usuarioId          Int      @map("usuario_id")
+  cantidadVentas     Int      @map("cantidad_ventas")
+  totalEfectivo      Decimal  @map("total_efectivo")      @db.Decimal(12, 2)
+  totalTransferencia Decimal  @map("total_transferencia") @db.Decimal(12, 2)
+  subtotal           Decimal  @db.Decimal(12, 2)
+  totalIva           Decimal  @map("total_iva")           @db.Decimal(12, 2)
+  totalConIva        Decimal  @map("total_con_iva")       @db.Decimal(12, 2)
+  creadoEn           DateTime @default(now())             @map("creado_en")
+
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
+  ventas   Venta[]
+
+  @@unique([fecha, sucursalId])
+  @@map("cortes_caja")
+}
+
+// ─── Car catalogue ───────────────────────────────────────────────────────────
+
+model MarcaAuto {
+  id       Int          @id @default(autoincrement())
+  nombre   String       @unique @db.VarChar(100)
+  pais     String?      @db.VarChar(80)
+
+  modelos  ModeloAuto[]
+
+  @@map("marcas_auto")
+}
+
+model ModeloAuto {
+  id       Int            @id @default(autoincrement())
+  nombre   String         @db.VarChar(100)
+  marcaId  Int            @map("marca_id")
+
+  marca    MarcaAuto      @relation(fields: [marcaId], references: [id])
+  versiones VersionAuto[]
+
+  @@unique([marcaId, nombre])
+  @@map("modelos_auto")
+}
+
+model VersionAuto {
+  id         Int        @id @default(autoincrement())
+  nombre     String     @db.VarChar(150)
+  modeloId   Int        @map("modelo_id")
+  anioInicio Int        @map("anio_inicio")
+  anioFin    Int?       @map("anio_fin")
+  motor      String?    @db.VarChar(100)
+  transmision String?   @db.VarChar(80)
+
+  modelo     ModeloAuto @relation(fields: [modeloId], references: [id])
+
+  @@map("versiones_auto")
+}
+
+model Cotizacion {
+  id             Int      @id @default(autoincrement())
+  fecha          DateTime @default(now())
+  sucursalId     Int      @map("sucursal_id")
+  usuarioId      Int      @map("usuario_id")
+  nombreCliente  String?  @map("nombre_cliente") @db.VarChar(200)
+  total          Decimal  @db.Decimal(12, 2)
+  creadoEn       DateTime @default(now()) @map("creado_en")
+
+  sucursal   Sucursal            @relation(fields: [sucursalId], references: [id])
+  usuario    Usuario             @relation(fields: [usuarioId], references: [id])
+  detalles   CotizacionDetalle[]
+
+  @@map("cotizaciones")
+}
+
+model CotizacionDetalle {
+  id           Int     @id @default(autoincrement())
+  cotizacionId Int     @map("cotizacion_id")
+  productoId   Int     @map("producto_id")
+  cantidad     Int
+  precioUnit   Decimal @map("precio_unit") @db.Decimal(12, 2)
+  subtotal     Decimal @db.Decimal(12, 2)
+
+  cotizacion Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+  producto   Producto   @relation(fields: [productoId], references: [id])
+
+  @@map("cotizacion_detalles")
+}
+
+model VentaDetalle {
+  id          Int     @id @default(autoincrement())
+  ventaId     Int     @map("venta_id")
+  productoId  Int     @map("producto_id")
+  cantidad    Int
+  precioUnit  Decimal @map("precio_unit") @db.Decimal(12, 2)
+  subtotal    Decimal @db.Decimal(12, 2)
+
+  venta    Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@map("venta_detalles")
+}
