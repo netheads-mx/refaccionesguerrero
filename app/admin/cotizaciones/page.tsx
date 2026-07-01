@@ -652,7 +652,7 @@ const thStyle: React.CSSProperties = {
   padding: '11px 14px',
   fontSize: '11px',
   fontWeight: 600,
-  color: '#374151',
+  color: '#8896B3',
   textAlign: 'left',
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
