@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 
 interface CotizacionDetalle {
   id: number
@@ -155,9 +155,8 @@ export default function CotizacionesPage() {
             </thead>
             <tbody>
               {cotizaciones.map((c) => (
-                <>
+                <React.Fragment key={c.id}>
                   <tr
-                    key={c.id}
                     style={{
                       borderBottom: '1px solid #1a1a1a',
                       transition: 'background 0.1s',
@@ -385,7 +384,7 @@ export default function CotizacionesPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
