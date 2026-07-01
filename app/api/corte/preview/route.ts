@@ -24,11 +24,17 @@ export async function GET(request: NextRequest) {
     const sucursal = await prisma.sucursal.findUnique({ where: { id: sucursalId } })
     if (!sucursal) return NextResponse.json({ error: 'Sucursal no encontrada' }, { status: 404 })
 
-    const hoyInicio = new Date(); hoyInicio.setHours(0, 0, 0, 0)
-    const hoyFin    = new Date(); hoyFin.setHours(23, 59, 59, 999)
+    // Use Mexico City timezone so "today" matches the user's local date
+    const mxNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }))
+    const hoyInicio = new Date(mxNow); hoyInicio.setHours(0, 0, 0, 0)
+    const hoyFin    = new Date(mxNow); hoyFin.setHours(23, 59, 59, 999)
+    // Convert back to UTC for the database query
+    const offset = mxNow.getTime() - new Date().getTime()
+    const hoyInicioUTC = new Date(hoyInicio.getTime() - offset)
+    const hoyFinUTC    = new Date(hoyFin.getTime() - offset)
 
     const ventas = await prisma.venta.findMany({
-      where: { sucursalId, corteId: null, fecha: { gte: hoyInicio, lte: hoyFin } },
+      where: { sucursalId, corteId: null, fecha: { gte: hoyInicioUTC, lte: hoyFinUTC } },
       orderBy: { fecha: 'asc' },
       select: {
         id: true, fecha: true, metodoPago: true, subtotal: true, ivaPorcentaje: true, totalConIva: true,

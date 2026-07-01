@@ -20,11 +20,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sin acceso a esa sucursal' }, { status: 403 })
     }
 
-    const hoyInicio = new Date(); hoyInicio.setHours(0, 0, 0, 0)
-    const hoyFin    = new Date(); hoyFin.setHours(23, 59, 59, 999)
+    // Use Mexico City timezone so "today" matches the user's local date
+    const mxNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City' }))
+    const hoyInicio = new Date(mxNow); hoyInicio.setHours(0, 0, 0, 0)
+    const hoyFin    = new Date(mxNow); hoyFin.setHours(23, 59, 59, 999)
+    const offset = mxNow.getTime() - new Date().getTime()
+    const hoyInicioUTC = new Date(hoyInicio.getTime() - offset)
+    const hoyFinUTC    = new Date(hoyFin.getTime() - offset)
 
     const ventas = await prisma.venta.findMany({
-      where: { sucursalId, corteId: null, fecha: { gte: hoyInicio, lte: hoyFin } },
+      where: { sucursalId, corteId: null, fecha: { gte: hoyInicioUTC, lte: hoyFinUTC } },
       select: { id: true, metodoPago: true, subtotal: true, totalConIva: true },
     })
 
@@ -38,8 +43,7 @@ export async function POST(request: NextRequest) {
     const totalConIva        = ventas.reduce((s, v) => s + Number(v.totalConIva), 0)
     const totalIva           = totalConIva - subtotal
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = new Date(hoyInicio)
 
     const existing = await prisma.corteCaja.findUnique({
       where: { fecha_sucursalId: { fecha: today, sucursalId } },
