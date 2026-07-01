@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const sucursalId: number = body.sucursalId ? Number(body.sucursalId) : (user.sucursalId ?? 0)
+    const gastosInput: { descripcion: string; monto: number }[] = Array.isArray(body.gastos) ? body.gastos.filter((g: { descripcion?: string; monto?: number }) => g.descripcion?.trim() && Number(g.monto) > 0) : []
 
     if (!sucursalId) return NextResponse.json({ error: 'Sucursal requerida' }, { status: 400 })
 
@@ -47,14 +48,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un corte de caja para hoy en esta sucursal' }, { status: 409 })
     }
 
+    const totalGastos = gastosInput.reduce((s, g) => s + Number(g.monto), 0)
+
     const corte = await prisma.$transaction(async (tx) => {
       const corte = await tx.corteCaja.create({
-        data: { fecha: today, sucursalId, usuarioId: user.userId, cantidadVentas: ventas.length, totalEfectivo, totalTransferencia, subtotal, totalIva, totalConIva },
+        data: { fecha: today, sucursalId, usuarioId: user.userId, cantidadVentas: ventas.length, totalEfectivo, totalTransferencia, subtotal, totalIva, totalConIva, totalGastos },
       })
       await tx.venta.updateMany({
         where: { id: { in: ventas.map(v => v.id) } },
         data: { corteId: corte.id },
       })
+      if (gastosInput.length > 0) {
+        await tx.gastoCaja.createMany({
+          data: gastosInput.map(g => ({ corteId: corte.id, descripcion: g.descripcion.trim(), monto: Number(g.monto) })),
+        })
+      }
       return corte
     })
 
@@ -90,6 +98,7 @@ export async function GET(request: NextRequest) {
       include: {
         usuario:  { select: { nombre: true, apellido: true } },
         sucursal: { select: { nombre: true } },
+        gastos:   true,
       },
     })
 

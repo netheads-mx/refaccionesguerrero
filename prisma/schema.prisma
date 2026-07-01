@@ -125,12 +125,26 @@ model CorteCaja {
   totalConIva        Decimal  @map("total_con_iva")       @db.Decimal(12, 2)
   creadoEn           DateTime @default(now())             @map("creado_en")
 
-  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
-  usuario  Usuario  @relation(fields: [usuarioId], references: [id])
+  totalGastos        Decimal  @default(0) @map("total_gastos") @db.Decimal(12, 2)
+
+  sucursal Sucursal    @relation(fields: [sucursalId], references: [id])
+  usuario  Usuario     @relation(fields: [usuarioId], references: [id])
   ventas   Venta[]
+  gastos   GastoCaja[]
 
   @@unique([fecha, sucursalId])
   @@map("cortes_caja")
+}
+
+model GastoCaja {
+  id          Int     @id @default(autoincrement())
+  corteId     Int     @map("corte_id")
+  descripcion String  @db.VarChar(200)
+  monto       Decimal @db.Decimal(12, 2)
+
+  corte CorteCaja @relation(fields: [corteId], references: [id], onDelete: Cascade)
+
+  @@map("gastos_caja")
 }
 
 // ─── Car catalogue ───────────────────────────────────────────────────────────

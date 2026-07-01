@@ -33,6 +33,10 @@ interface Preview {
   hasSales: boolean
 }
 
+interface GastoItem { descripcion: string; monto: string }
+
+interface GastoRecord { id: number; descripcion: string; monto: string }
+
 interface CorteRecord {
   id: number
   fecha: string
@@ -42,8 +46,10 @@ interface CorteRecord {
   subtotal: string
   totalIva: string
   totalConIva: string
+  totalGastos: string
   sucursal: { nombre: string }
   usuario: { nombre: string; apellido: string }
+  gastos: GastoRecord[]
 }
 
 const fmt = (n: number) =>
@@ -70,9 +76,12 @@ export default function CorteCajaPage() {
   const [cortes, setCortes]                 = useState<CorteRecord[]>([])
   const [loadingCortes, setLoadingCortes]   = useState(false)
 
+  const [gastos, setGastos]                 = useState<GastoItem[]>([])
+
   const [confirming, setConfirming]         = useState(false)
   const [processing, setProcessing]         = useState(false)
   const [successId, setSuccessId]           = useState<number | null>(null)
+  const [lastCorteData, setLastCorteData]   = useState<{ preview: Preview; gastos: GastoItem[] } | null>(null)
   const [error, setError]                   = useState('')
 
   useEffect(() => {
@@ -128,25 +137,115 @@ export default function CorteCajaPage() {
     loadCortes(selectedSucursal)
   }, [selectedSucursal, loadPreview, loadCortes])
 
+  const totalGastos = gastos.reduce((s, g) => s + (Number(g.monto) || 0), 0)
+
+  function addGasto() { setGastos(prev => [...prev, { descripcion: '', monto: '' }]) }
+
+  function removeGasto(idx: number) { setGastos(prev => prev.filter((_, i) => i !== idx)) }
+
+  function updateGasto(idx: number, field: keyof GastoItem, value: string) {
+    setGastos(prev => prev.map((g, i) => i === idx ? { ...g, [field]: value } : g))
+  }
+
   async function handleCorte() {
-    if (!selectedSucursal) return
+    if (!selectedSucursal || !preview) return
     setProcessing(true)
     setError('')
     try {
-      const res  = await fetch('/api/corte', {
+      const validGastos = gastos
+        .filter(g => g.descripcion.trim() && Number(g.monto) > 0)
+        .map(g => ({ descripcion: g.descripcion.trim(), monto: Number(g.monto) }))
+
+      const res = await fetch('/api/corte', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sucursalId: selectedSucursal }),
+        body: JSON.stringify({ sucursalId: selectedSucursal, gastos: validGastos }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Error al procesar corte'); return }
+      setLastCorteData({ preview, gastos: gastos.filter(g => g.descripcion.trim() && Number(g.monto) > 0) })
       setSuccessId(data.id)
       setConfirming(false)
+      setGastos([])
+      generatePDF(data.id, preview, validGastos)
       loadPreview(selectedSucursal)
       loadCortes(selectedSucursal)
     } finally {
       setProcessing(false)
     }
+  }
+
+  async function generatePDF(corteId: number, previewData: Preview, corteGastos: { descripcion: string; monto: number }[]) {
+    if (!user) return
+    const now = new Date()
+    const fechaHora = now.toLocaleString('es-MX', { dateStyle: 'full', timeStyle: 'short' })
+    const gastosTotal = corteGastos.reduce((s, g) => s + g.monto, 0)
+    const neto = previewData.totals.totalConIva - gastosTotal
+
+    const html = `
+      <div style="font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; max-width: 700px; margin: 0 auto; padding: 24px;">
+        <div style="text-align: center; margin-bottom: 24px; border-bottom: 2px solid #333; padding-bottom: 16px;">
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 0.1em;">AUTOPARTES GUERRERO</h1>
+          <p style="margin: 6px 0 0; font-size: 14px; color: #666;">Corte de Caja #${corteId}</p>
+        </div>
+        <table style="width: 100%; margin-bottom: 20px; font-size: 13px;">
+          <tr><td style="padding: 4px 0; color: #666; width: 140px;">Fecha y hora:</td><td style="padding: 4px 0; text-transform: capitalize;">${fechaHora}</td></tr>
+          <tr><td style="padding: 4px 0; color: #666;">Sucursal:</td><td style="padding: 4px 0;">${previewData.sucursalNombre}</td></tr>
+          <tr><td style="padding: 4px 0; color: #666;">Realizado por:</td><td style="padding: 4px 0;">${user.nombre} ${user.apellido} (${user.rol})</td></tr>
+        </table>
+        <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 6px;">Resumen de Ventas</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+          <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; color: #666;">Total de ventas</td><td style="padding: 8px 0; text-align: right; font-weight: 600;">${previewData.totals.count}</td></tr>
+          <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; color: #666;">Efectivo</td><td style="padding: 8px 0; text-align: right; color: #16a34a;">${fmt(previewData.totals.efectivo)}</td></tr>
+          <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; color: #666;">Transferencia</td><td style="padding: 8px 0; text-align: right; color: #9333ea;">${fmt(previewData.totals.transferencia)}</td></tr>
+          <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; color: #666;">Subtotal (sin IVA)</td><td style="padding: 8px 0; text-align: right;">${fmt(previewData.totals.subtotal)}</td></tr>
+          <tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0; color: #666;">IVA (16%)</td><td style="padding: 8px 0; text-align: right;">${fmt(previewData.totals.totalIva)}</td></tr>
+          <tr><td style="padding: 10px 0; font-weight: 700; font-size: 15px;">Total del día</td><td style="padding: 10px 0; text-align: right; font-weight: 700; font-size: 15px;">${fmt(previewData.totals.totalConIva)}</td></tr>
+        </table>
+        ${corteGastos.length > 0 ? `
+          <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 6px;">Gastos</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+            <thead>
+              <tr style="border-bottom: 1px solid #ddd;">
+                <th style="padding: 8px 0; text-align: left; color: #666; font-weight: 600;">Descripción</th>
+                <th style="padding: 8px 0; text-align: right; color: #666; font-weight: 600;">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${corteGastos.map(g => `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 8px 0;">${g.descripcion}</td><td style="padding: 8px 0; text-align: right; color: #dc2626;">${fmt(g.monto)}</td></tr>`).join('')}
+              <tr><td style="padding: 10px 0; font-weight: 700;">Total gastos</td><td style="padding: 10px 0; text-align: right; font-weight: 700; color: #dc2626;">${fmt(gastosTotal)}</td></tr>
+            </tbody>
+          </table>
+        ` : ''}
+        <div style="border-top: 2px solid #333; padding-top: 12px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 700;">
+          <span>Neto del día</span>
+          <span>${fmt(neto)}</span>
+        </div>
+        <p style="text-align: center; color: #999; font-size: 11px; margin-top: 32px;">Documento generado el ${fechaHora}</p>
+      </div>
+    `
+
+    const container = document.createElement('div')
+    container.style.position = 'fixed'
+    container.style.left = '-9999px'
+    container.style.width = '700px'
+    container.style.background = '#fff'
+    container.innerHTML = html
+    document.body.appendChild(container)
+
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+    const html2pdf = (await import('html2pdf.js')).default
+    const dateStr = now.toISOString().slice(0, 10)
+    await html2pdf().set({
+      margin: [10, 10, 10, 10],
+      filename: `CorteCaja_${corteId}_${dateStr}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, width: 700 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(container).save()
+
+    document.body.removeChild(container)
   }
 
   async function handleLogout() {
@@ -330,7 +429,11 @@ export default function CorteCajaPage() {
                         { label: 'Transferencia',    value: fmt(preview.totals.transferencia),        color: '#A855F7' },
                         { label: 'Subtotal (s/IVA)', value: fmt(preview.totals.subtotal) },
                         { label: 'IVA (16%)',        value: fmt(preview.totals.totalIva) },
-                        { label: 'Total del día',    value: fmt(preview.totals.totalConIva),          highlight: true },
+                        { label: 'Total ventas',     value: fmt(preview.totals.totalConIva),          highlight: true },
+                        ...(totalGastos > 0 ? [
+                          { label: 'Total gastos',   value: fmt(totalGastos),                         color: '#EF4444' },
+                          { label: 'Neto del día',   value: fmt(preview.totals.totalConIva - totalGastos), highlight: true },
+                        ] : []),
                       ].map(item => (
                         <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span style={{ fontSize: '11px', color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.label}</span>
@@ -340,6 +443,61 @@ export default function CorteCajaPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* ── Gastos ── */}
+                  <div style={{ borderTop: '1px solid #1C2B3F', paddingTop: '20px', marginTop: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <h3 style={{ fontFamily: 'var(--font-syne)', fontWeight: 700, fontSize: '13px', color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                        Gastos del día
+                      </h3>
+                      <button type="button" className="btn-ghost" onClick={addGasto} style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Agregar gasto
+                      </button>
+                    </div>
+                    {gastos.length === 0 ? (
+                      <p style={{ fontSize: '13px', color: '#8896B3', margin: 0 }}>No se han registrado gastos. Puedes agregar gastos antes de realizar el corte.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {gastos.map((g, idx) => (
+                          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                              className="input-base"
+                              placeholder="Descripción del gasto"
+                              value={g.descripcion}
+                              onChange={e => updateGasto(idx, 'descripcion', e.target.value)}
+                              style={{ flex: 1 }}
+                            />
+                            <input
+                              className="input-base"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Monto"
+                              value={g.monto}
+                              onChange={e => updateGasto(idx, 'monto', e.target.value)}
+                              style={{ width: '140px', textAlign: 'right' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeGasto(idx)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '6px', display: 'flex', flexShrink: 0 }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        {totalGastos > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', paddingTop: '8px', borderTop: '1px solid #1C2B3F' }}>
+                            <span style={{ fontSize: '12px', color: '#8896B3', textTransform: 'uppercase' }}>Total gastos:</span>
+                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#EF4444' }}>{fmt(totalGastos)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Confirm ── */}
@@ -380,7 +538,7 @@ export default function CorteCajaPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #1C2B3F' }}>
-                      {['Fecha', 'Ventas', 'Efectivo', 'Transferencia', 'IVA', 'Total', 'Realizado por'].map(h => (
+                      {['Fecha', 'Ventas', 'Efectivo', 'Transferencia', 'IVA', 'Total', 'Gastos', 'Realizado por'].map(h => (
                         <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -394,6 +552,7 @@ export default function CorteCajaPage() {
                         <td style={{ padding: '11px 14px', fontSize: '13px', color: '#A855F7' }}>{fmt(Number(c.totalTransferencia))}</td>
                         <td style={{ padding: '11px 14px', fontSize: '13px', color: '#8896B3' }}>{fmt(Number(c.totalIva))}</td>
                         <td style={{ padding: '11px 14px', fontSize: '13px', fontWeight: 600, color: '#F59E0B', fontFamily: 'var(--font-syne)' }}>{fmt(Number(c.totalConIva))}</td>
+                        <td style={{ padding: '11px 14px', fontSize: '13px', color: Number(c.totalGastos) > 0 ? '#EF4444' : '#8896B3' }}>{Number(c.totalGastos) > 0 ? fmt(Number(c.totalGastos)) : '—'}</td>
                         <td style={{ padding: '11px 14px', fontSize: '13px', color: '#8896B3' }}>{c.usuario.nombre} {c.usuario.apellido}</td>
                       </tr>
                     ))}

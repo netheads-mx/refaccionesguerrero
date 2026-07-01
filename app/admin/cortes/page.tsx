@@ -12,6 +12,7 @@ interface CorteCaja {
   subtotal: string
   totalIva: string
   totalConIva: string
+  totalGastos: string
   creadoEn: string
   sucursal: { id: number; nombre: string }
   usuario: { id: number; nombre: string; apellido: string }
@@ -80,8 +81,9 @@ export default function CortesPage() {
       transferencia:   acc.transferencia + Number(c.totalTransferencia),
       iva:             acc.iva + Number(c.totalIva),
       total:           acc.total + Number(c.totalConIva),
+      gastos:          acc.gastos + Number(c.totalGastos),
     }),
-    { ventas: 0, efectivo: 0, transferencia: 0, iva: 0, total: 0 }
+    { ventas: 0, efectivo: 0, transferencia: 0, iva: 0, total: 0, gastos: 0 }
   )
 
   function pages() {
@@ -164,6 +166,7 @@ export default function CortesPage() {
             { label: 'Transferencia', value: fmt(pageTotals.transferencia), color: '#A855F7' },
             { label: 'IVA', value: fmt(pageTotals.iva) },
             { label: 'Total', value: fmt(pageTotals.total), highlight: true },
+            ...(pageTotals.gastos > 0 ? [{ label: 'Gastos', value: fmt(pageTotals.gastos), color: '#EF4444' }] : []),
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '11px', color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.label}</span>
@@ -189,7 +192,7 @@ export default function CortesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #1C2B3F' }}>
-                {['#', 'Fecha', 'Sucursal', 'Ventas', 'Efectivo', 'Transferencia', 'IVA', 'Total', 'Realizado por'].map(h => (
+                {['#', 'Fecha', 'Sucursal', 'Ventas', 'Efectivo', 'Transferencia', 'IVA', 'Total', 'Gastos', 'Realizado por'].map(h => (
                   <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -205,6 +208,7 @@ export default function CortesPage() {
                   <td style={{ padding: '13px 16px', fontSize: '13px', color: '#A855F7' }}>{fmt(Number(c.totalTransferencia))}</td>
                   <td style={{ padding: '13px 16px', fontSize: '13px', color: '#8896B3' }}>{fmt(Number(c.totalIva))}</td>
                   <td style={{ padding: '13px 16px', fontSize: '13px', fontWeight: 700, color: '#F59E0B', fontFamily: 'var(--font-syne)' }}>{fmt(Number(c.totalConIva))}</td>
+                  <td style={{ padding: '13px 16px', fontSize: '13px', color: Number(c.totalGastos) > 0 ? '#EF4444' : '#8896B3' }}>{Number(c.totalGastos) > 0 ? fmt(Number(c.totalGastos)) : '—'}</td>
                   <td style={{ padding: '13px 16px', fontSize: '13px', color: '#8896B3' }}>{c.usuario.nombre} {c.usuario.apellido}</td>
                 </tr>
               ))}

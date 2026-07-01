@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         include: {
           sucursal: { select: { id: true, nombre: true } },
           usuario:  { select: { id: true, nombre: true, apellido: true } },
+          gastos:   true,
         },
       }),
     ])
