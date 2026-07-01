@@ -198,6 +198,9 @@ export function ProductoForm({ sucursales, initial, editId }: Props) {
                 style={loadingMarcas ? disSelStyle : selStyle}
               >
                 <option value="">{loadingMarcas ? 'Cargando…' : 'Seleccionar marca…'}</option>
+                {form.marca && !marcas.some(m => m.nombre === form.marca) && (
+                  <option value={form.marca}>{form.marca}</option>
+                )}
                 {marcas.map(m => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
               </select>
             </Field>
@@ -215,12 +218,18 @@ export function ProductoForm({ sucursales, initial, editId }: Props) {
                     : modelos.length === 0 ? 'Sin modelos registrados'
                     : 'Seleccionar modelo…'}
                 </option>
+                {form.modelo && !modelos.some(m => m.nombre === form.modelo) && (
+                  <option value={form.modelo}>{form.modelo}</option>
+                )}
                 {modelos.map(m => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
               </select>
             </Field>
             <Field label="Color">
               <select className="input-base" value={form.color} onChange={set('color')} style={selStyle}>
                 <option value="">Seleccionar color…</option>
+                {form.color && !CAR_COLORS.includes(form.color) && (
+                  <option value={form.color}>{form.color}</option>
+                )}
                 {CAR_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
