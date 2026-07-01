@@ -104,21 +104,19 @@ export default function CotizacionesPage() {
     new Date(d).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
 
   return (
-    <div>
-      <div style={{ marginBottom: '24px' }}>
+    <div className="admin-page-content" style={{ padding: '36px 40px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div className="animate-fade-up">
         <h1
           style={{
             fontFamily: 'var(--font-syne)',
-            fontSize: '22px',
-            fontWeight: 700,
-            color: '#F0F0F0',
-            letterSpacing: '-0.02em',
-            margin: 0,
+            fontWeight: 800,
+            fontSize: '26px',
+            color: '#E8EDFF',
           }}
         >
           Cotizaciones
         </h1>
-        <p style={{ fontSize: '13px', color: '#888888', marginTop: '4px' }}>
+        <p style={{ fontSize: '13px', color: '#8896B3', marginTop: '3px' }}>
           Historial de cotizaciones generadas desde el punto de venta
         </p>
       </div>
@@ -132,17 +130,10 @@ export default function CotizacionesPage() {
           No hay cotizaciones registradas.
         </div>
       ) : (
-        <div
-          style={{
-            background: '#111111',
-            border: '1px solid #282828',
-            borderRadius: '4px',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="card animate-fade-up delay-100" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #282828' }}>
+              <tr style={{ borderBottom: '1px solid #1C2B3F', background: '#0B1121' }}>
                 <th style={thStyle}>#</th>
                 <th style={thStyle}>Fecha</th>
                 <th style={thStyle}>Cliente</th>
@@ -158,11 +149,10 @@ export default function CotizacionesPage() {
                 <React.Fragment key={c.id}>
                   <tr
                     style={{
-                      borderBottom: '1px solid #1a1a1a',
+                      borderBottom: '1px solid #1C2B3F',
                       transition: 'background 0.1s',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,68,0,0.04)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    className="table-row"
                   >
                     <td
                       style={{ ...tdStyle, cursor: 'pointer' }}
@@ -282,9 +272,9 @@ export default function CotizacionesPage() {
                       <td colSpan={8} style={{ padding: 0 }}>
                         <div
                           style={{
-                            background: '#0d0d0d',
-                            borderTop: '1px solid #282828',
-                            borderBottom: '1px solid #282828',
+                            background: '#0B1121',
+                            borderTop: '1px solid #1C2B3F',
+                            borderBottom: '1px solid #1C2B3F',
                             padding: '12px 16px',
                           }}
                         >
@@ -659,17 +649,18 @@ export default function CotizacionesPage() {
 }
 
 const thStyle: React.CSSProperties = {
-  padding: '10px 12px',
+  padding: '11px 14px',
   fontSize: '11px',
   fontWeight: 600,
-  color: '#888888',
+  color: '#374151',
   textAlign: 'left',
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  whiteSpace: 'nowrap',
 }
 
 const tdStyle: React.CSSProperties = {
-  padding: '10px 12px',
+  padding: '12px 14px',
   fontSize: '13px',
-  color: '#ccc',
+  color: '#8896B3',
 }
