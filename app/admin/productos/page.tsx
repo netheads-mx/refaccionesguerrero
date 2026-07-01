@@ -245,7 +245,7 @@ export default function ProductosPage() {
             <thead>
               <tr style={{ borderBottom: '1px solid #1C2B3F', background: '#0B1121' }}>
                 {['N° Serie', 'Nombre', 'Marca / Modelo', 'Color', 'Año', 'Precio', 'Stock por sucursal', 'Estado', 'Acciones'].map((h) => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
                 ))}

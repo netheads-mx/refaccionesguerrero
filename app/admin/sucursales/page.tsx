@@ -134,7 +134,7 @@ export default function SucursalesPage() {
             <thead>
               <tr style={{ borderBottom: '1px solid #1C2B3F', background: '#0B1121' }}>
                 {['Nombre', 'Dirección', 'Alta', ''].map(h => (
-                  <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#8896B3', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     {h}
                   </th>
                 ))}
